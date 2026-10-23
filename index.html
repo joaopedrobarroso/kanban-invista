@@ -138,6 +138,7 @@ td.acoes-l button{padding:4px 8px;font-size:12px;margin:2px}
       <button class="destaque" id="b-nova">+ Nova solicitação</button>
       <button id="b-lote-inc" hidden>Inclusão em lote</button>
       <button id="b-admin" hidden>Administração</button>
+      <button id="b-conta">Minha conta</button>
       <button id="b-sair">Sair</button>
     </header>
     <div class="barra">
@@ -273,6 +274,39 @@ function encerrarLocal() {
   $('#modais').innerHTML = '';
   ver('v-login');
 }
+
+$('#b-conta').addEventListener('click', () => {
+  const aprova = S.u && S.u.pode_aprovar;
+  const f = modal('<h2>Minha conta</h2>' +
+    '<p style="color:var(--sub);margin:0">' + esc(S.u.nome) + ' · usuário <b>' + esc(S.u.usuario) + '</b></p>' +
+    '<label>Senha atual</label><input id="mc-atual" type="password" autocomplete="current-password">' +
+    '<label>Nova senha <span style="color:var(--sub);font-weight:400">(deixe em branco para manter)</span></label>' +
+    '<input id="mc-s1" type="password" autocomplete="new-password" placeholder="mínimo 8 caracteres, com letras e números">' +
+    '<label>Confirme a nova senha</label><input id="mc-s2" type="password" autocomplete="new-password">' +
+    (aprova ? '<label>Novo PIN <span style="color:var(--sub);font-weight:400">(deixe em branco para manter)</span></label>' +
+      '<input id="mc-p1" type="password" inputmode="numeric" autocomplete="off">' +
+      '<label>Confirme o novo PIN</label><input id="mc-p2" type="password" inputmode="numeric" autocomplete="off">' : '') +
+    '<div class="info">Ao salvar, você continua conectado aqui e sai dos outros navegadores.</div>' +
+    '<div class="erro" id="mc-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button id="mc-ok">Salvar</button></div>');
+  const v = id => { const el = f.querySelector(id); return el ? el.value : ''; };
+  f.querySelector('#mc-atual').focus();
+  f.querySelector('#mc-ok').addEventListener('click', async e => {
+    const erro = f.querySelector('#mc-erro');
+    erro.textContent = '';
+    if (!v('#mc-atual')) { erro.textContent = 'Digite a sua senha atual.'; return; }
+    if (v('#mc-s1') !== v('#mc-s2')) { erro.textContent = 'As novas senhas não conferem.'; return; }
+    if (aprova && v('#mc-p1') !== v('#mc-p2')) { erro.textContent = 'Os novos PINs não conferem.'; return; }
+    if (!v('#mc-s1') && !(aprova && v('#mc-p1'))) { erro.textContent = 'Preencha a nova senha' + (aprova ? ' ou o novo PIN.' : '.'); return; }
+    e.target.disabled = true; e.target.textContent = 'Salvando…';
+    try {
+      const r = await api('apiAlterarAcesso', S.token, v('#mc-atual'), v('#mc-s1'), aprova ? v('#mc-p1') : '');
+      S.token = r.token; guardar(r.token);
+      f.remove();
+      aviso('Dados de acesso alterados.', 'ok');
+    } catch (err) { erro.textContent = err.message; e.target.disabled = false; e.target.textContent = 'Salvar'; }
+  });
+});
 
 $('#b-sair').addEventListener('click', () => { api('apiSair', S.token).catch(() => {}); encerrarLocal(); });
 
