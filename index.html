@@ -528,6 +528,12 @@ function abrirCard(id) {
   let acoes = '';
   if (S.u.pode_aprovar && c.status === 'SOLICITADO') acoes = '<button class="perigo" data-x="recusar">Recusar</button><button class="ok" data-x="aprovar">Aprovar e ' + verbo(c.tipo) + '</button>';
   if (S.u.pode_aprovar && c.status === 'ERRO') acoes = '<button class="perigo" data-x="recusar">Recusar</button><button data-x="reabrir">Voltar para Solicitado</button>';
+  if (c.status === 'EXECUTADO' && c.tipo !== 'REATIVAR') {
+    const jaPedido = S.cards.some(x => x.codigo === c.codigo && x.tipo === 'REATIVAR' && ['SOLICITADO', 'APROVADO', 'ERRO'].indexOf(x.status) >= 0);
+    acoes = jaPedido
+      ? '<span class="tag pend">Reativação já pedida</span>'
+      : '<button class="ok" data-x="pedirReativacao">Reativar este imóvel</button>';
+  }
 
   const f = modal('<h2>Imóvel ' + esc(c.codigo) + etiquetaTipo(c.tipo) + '</h2><dl class="det">' +
     L.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>' +
@@ -535,7 +541,7 @@ function abrirCard(id) {
     '<div class="acoes"><button class="sec" data-a="fechar">Fechar</button>' + acoes + '</div>');
   f.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => {
     f.remove();
-    ({ recusar, aprovar, reabrir })[b.dataset.x](c);
+    ({ recusar, aprovar, reabrir, pedirReativacao })[b.dataset.x](c);
   }));
 }
 
@@ -589,6 +595,33 @@ function recusar(c) {
       const r = await api('apiRecusar', S.token, c.id, f.querySelector('#r-mot').value);
       f.remove(); aviso('Solicitação recusada.', 'ok'); aplicarCards(r.cards);
     } catch (err) { f.querySelector('#r-erro').textContent = err.message; e.target.disabled = false; }
+  });
+}
+
+/* Cria o pedido de reativação a partir de um card de desativação executado. */
+function pedirReativacao(c) {
+  const f = modal('<h2>Reativar imóvel ' + esc(c.codigo) + etiquetaTipo('REATIVAR') + '</h2>' +
+    '<p style="color:var(--sub);margin:0">Desativado em ' + esc(c.executado_em) + ' (' + esc(c.id) + ', motivo: ' + esc(c.motivo) + ').</p>' +
+    '<div class="info">O imóvel volta para <b>Vago/Disponível</b> no Imoview.</div>' +
+    '<label>Observação <span style="color:var(--sub);font-weight:400">(opcional)</span></label>' +
+    '<textarea id="pr-obs" rows="2" maxlength="300"></textarea>' +
+    '<div class="erro" id="pr-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="ok" id="pr-ok">' +
+    (S.u.pode_aprovar ? 'Reativar agora' : 'Pedir reativação') + '</button></div>');
+  f.querySelector('#pr-ok').addEventListener('click', async e => {
+    e.target.disabled = true; e.target.textContent = 'Criando pedido…';
+    const obs = f.querySelector('#pr-obs').value.trim();
+    try {
+      const r = await api('apiCriarCard', S.token, {
+        tipo: 'REATIVAR', codigo: c.codigo,
+        observacao: 'Reativação do ' + c.id + (obs ? ' — ' + obs : '')
+      });
+      f.remove();
+      aplicarCards(r.cards);
+      const novo = (r.cards || []).find(x => x.id === r.id);
+      if (S.u.pode_aprovar && novo) aprovar(novo);   // já abre a confirmação com PIN
+      else aviso('Pedido de reativação ' + r.id + ' criado.', 'ok');
+    } catch (err) { f.querySelector('#pr-erro').textContent = err.message; e.target.disabled = false; e.target.textContent = 'Tentar de novo'; }
   });
 }
 
