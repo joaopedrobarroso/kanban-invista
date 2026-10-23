@@ -147,6 +147,7 @@ td.acoes-l button{padding:4px 8px;font-size:12px;margin:2px}
       <button class="sec" id="b-atualizar">Atualizar</button>
       <button class="sec" id="b-sel-todos" hidden>Selecionar todos os solicitados</button>
       <button class="ok" id="b-aprovar-sel" hidden disabled>Aprovar selecionados (0)</button>
+      <button class="perigo" id="b-recusar-sel" hidden disabled>Recusar selecionados (0)</button>
       <span id="atualizado" class="tag"></span>
     </div>
     <div class="faixa" id="faixa-aprovador" hidden></div>
@@ -386,6 +387,7 @@ function montarBoard() {
   $('#b-lote-inc').hidden = !S.u.pode_aprovar;
   $('#b-sel-todos').hidden = !S.u.pode_aprovar;
   $('#b-aprovar-sel').hidden = !S.u.pode_aprovar;
+  $('#b-recusar-sel').hidden = !S.u.pode_aprovar;
   renderFaixa();
   renderBoard();
   carimbo();
@@ -459,6 +461,9 @@ function atualizarBotaoSel() {
   const b = $('#b-aprovar-sel');
   b.textContent = 'Aprovar selecionados (' + S.sel.size + ')';
   b.disabled = S.sel.size === 0;
+  const br = $('#b-recusar-sel');
+  br.textContent = 'Recusar selecionados (' + S.sel.size + ')';
+  br.disabled = S.sel.size === 0;
   const total = S.cards.filter(c => c.status === 'SOLICITADO').length;
   $('#b-sel-todos').textContent = (total && S.sel.size === total) ? 'Desmarcar todos' : 'Selecionar todos os solicitados';
 }
@@ -474,6 +479,29 @@ $('#b-sel-todos').addEventListener('click', () => {
 $('#b-aprovar-sel').addEventListener('click', () => {
   const lista = S.cards.filter(c => S.sel.has(c.id));
   if (lista.length) aprovarLote(lista);
+});
+$('#b-recusar-sel').addEventListener('click', () => {
+  const lista = S.cards.filter(c => S.sel.has(c.id));
+  if (!lista.length) return;
+  const f = modal('<h2>Recusar ' + lista.length + ' solicitação(ões)</h2>' +
+    '<div class="lista-curta">' + lista.map(c => '<div><b>' + esc(c.codigo) + '</b>' + etiquetaTipo(c.tipo) + ' — ' + esc(c.motivo) + '</div>').join('') + '</div>' +
+    '<label>Motivo da recusa (vale para todos)</label><textarea id="rl-mot" rows="3" maxlength="300"></textarea>' +
+    '<div class="info">Recusar não altera nada no Imoview: só tira os pedidos da fila.</div>' +
+    '<div class="erro" id="rl-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="perigo" id="rl-ok">Recusar ' + lista.length + '</button></div>', true);
+  f.querySelector('#rl-mot').focus();
+  f.querySelector('#rl-ok').addEventListener('click', async e => {
+    const mot = f.querySelector('#rl-mot').value.trim();
+    if (mot.length < 3) { f.querySelector('#rl-erro').textContent = 'Informe o motivo da recusa.'; return; }
+    e.target.disabled = true; e.target.textContent = 'Recusando…';
+    try {
+      const r = await api('apiRecusarLote', S.token, lista.map(c => c.id), mot);
+      f.remove();
+      S.sel.clear();
+      aviso(r.recusados + ' solicitação(ões) recusada(s).' + (r.ignorados.length ? ' ' + r.ignorados.length + ' já tinha(m) mudado de status.' : ''), 'ok');
+      aplicarCards(r.cards);
+    } catch (err) { f.querySelector('#rl-erro').textContent = err.message; e.target.disabled = false; e.target.textContent = 'Recusar ' + lista.length; }
+  });
 });
 $('#filtro').addEventListener('input', e => { S.filtro = e.target.value; renderBoard(); });
 $('#b-atualizar').addEventListener('click', atualizar);
