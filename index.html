@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<title>Kanban de Desativação e Reativação</title>
+<style>
+:root{--azul:#1f3b5c;--azul2:#2d5a8a;--fundo:#f2f4f7;--borda:#d9dee5;--texto:#1d2733;--sub:#5d6b7a;--verde:#1e8e3e;--vermelho:#c5221f}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--fundo);color:var(--texto);font-size:14px}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer;border:0;border-radius:6px;padding:8px 14px;background:var(--azul);color:#fff}
+button.sec{background:#e6ebf1;color:var(--texto)}
+button.perigo{background:var(--vermelho)}
+button.ok{background:var(--verde)}
+button.link{background:none;color:var(--azul2);padding:0;text-decoration:underline}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;width:100%;padding:9px 10px;border:1px solid var(--borda);border-radius:6px;background:#fff;color:var(--texto)}
+input[readonly]{background:#eef1f5}
+label{display:block;font-weight:600;margin:12px 0 4px}
+.auth{max-width:380px;margin:8vh auto;background:#fff;border:1px solid var(--borda);border-radius:10px;padding:28px}
+.auth h1{font-size:20px;margin:0 0 4px;color:var(--azul)}
+.auth p.sub{margin:0 0 8px;color:var(--sub)}
+.auth .acoes{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+.erro{color:var(--vermelho);margin-top:10px;min-height:18px}
+header{background:var(--azul);color:#fff;display:flex;align-items:center;gap:10px;padding:10px 16px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;flex:1;min-width:180px}
+header .quem{font-size:13px;opacity:.9}
+header button{background:rgba(255,255,255,.15)}
+header button.destaque{background:#fff;color:var(--azul);font-weight:600}
+.barra{display:flex;gap:10px;padding:10px 16px;align-items:center;flex-wrap:wrap}
+.barra input{max-width:300px}
+.faixa{margin:0 16px 10px;padding:10px 14px;border-radius:8px;background:#fff;border:1px solid var(--borda);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;background:#e6ebf1;color:var(--texto)}
+.tag.ok{background:#d9f2d9;color:#11602a}.tag.pend{background:#fff0c2;color:#7a5600}.tag.ruim{background:#f8d0d0;color:#8c1d18}
+#board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;padding:0 16px 24px;overflow-x:auto}
+.col{background:#e9edf2;border-radius:10px;padding:10px;min-height:200px}
+.col h3{margin:0 0 10px;font-size:12px;display:flex;justify-content:space-between;gap:6px;text-transform:uppercase;letter-spacing:.3px}
+.col h3 span{background:#fff;border-radius:10px;padding:0 8px;height:18px}
+.col-SOLICITADO h3{color:#7a5600}.col-APROVADO h3{color:#1a4f8b}.col-EXECUTADO h3{color:#11602a}.col-RECUSADO h3{color:#555}.col-ERRO h3{color:#8c1d18}
+.card{background:#fff;border-radius:8px;padding:10px;margin-bottom:8px;border-left:4px solid var(--borda);cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.card:hover{box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.col-SOLICITADO .card{border-left-color:#f9ab00}.col-APROVADO .card{border-left-color:#4285f4}.col-EXECUTADO .card{border-left-color:#34a853}.col-ERRO .card{border-left-color:#ea4335}
+.card .cod{font-weight:700}.card .mot{margin:2px 0}.card .meta,.card .cid{color:var(--sub);font-size:12px}
+.vazio{color:var(--sub);font-size:12px;text-align:center}
+.card .sel{float:right;margin:-2px -2px 0 6px;cursor:pointer}
+.card .sel input{width:18px;height:18px;cursor:pointer}
+.card.marcado{outline:2px solid var(--verde)}
+.lote-tab{width:100%;min-width:0;margin-top:10px}
+.lote-tab td,.lote-tab th{padding:4px;border-bottom:1px solid var(--borda)}
+.lote-tab input,.lote-tab select{padding:6px;font-size:13px}
+.lote-tab button{padding:4px 8px}
+.tipo{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:6px;vertical-align:middle;letter-spacing:.3px}
+.tipo.DESATIVAR{background:#fde2e1;color:#8c1d18}.tipo.REATIVAR{background:#d9f2d9;color:#11602a}
+.escolha-tipo{display:flex;gap:8px;margin:10px 0 4px}
+.escolha-tipo label{margin:0;flex:1;display:flex;align-items:center;gap:8px;border:1px solid var(--borda);border-radius:8px;padding:10px;cursor:pointer;font-weight:600}
+.escolha-tipo input{width:auto}
+.lista-curta{max-height:200px;overflow:auto;background:#f6f8fa;border-radius:6px;padding:8px 12px;margin-top:8px;font-size:13px}
+.fundo{position:fixed;inset:0;background:rgba(15,25,40,.45);display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;z-index:10;overflow:auto}
+.modal{background:#fff;border-radius:10px;width:100%;max-width:520px;padding:22px}
+.modal.largo{max-width:760px}
+.modal h2{margin:0 0 6px;font-size:18px;color:var(--azul)}
+.modal .acoes{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+dl.det{display:grid;grid-template-columns:150px 1fr;gap:6px 10px;margin:12px 0}
+dl.det dt{color:var(--sub)}dl.det dd{margin:0;word-break:break-word}
+.alerta{padding:10px 12px;border-radius:8px;background:#fdecea;color:#8c1d18;margin-top:10px}
+.info{padding:10px 12px;border-radius:8px;background:#e8f0fe;color:#1a4f8b;margin-top:10px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#263445;color:#fff;padding:10px 16px;border-radius:8px;z-index:20;max-width:90vw}
+#toast.erro{background:var(--vermelho)}#toast.ok{background:var(--verde)}
+.admin{padding:0 16px 24px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#fff;min-width:900px}
+th,td{padding:8px;border-bottom:1px solid var(--borda);text-align:left;font-size:13px;vertical-align:top}
+th{background:#e9edf2}
+td.acoes-l button{padding:4px 8px;font-size:12px;margin:2px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #c9d3df;border-top-color:var(--azul);border-radius:50%;animation:g 1s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes g{to{transform:rotate(360deg)}}
+@media (max-width:700px){#board{grid-template-columns:repeat(5,85vw)}dl.det{grid-template-columns:1fr}.auth{margin:4vh 16px}}
+</style>
+</head>
+<body>
+<div id="kd-app" data-kanban="desativacao" data-versao="1.0.0">
+
+  <!-- LOGIN -->
+  <div class="view" id="v-login" hidden>
+    <form class="auth" id="f-login">
+      <h1>Kanban de Desativação e Reativação</h1>
+      <p class="sub">Invista Locações</p>
+      <label for="l-usuario">Usuário</label>
+      <input id="l-usuario" autocomplete="username" autocapitalize="off" spellcheck="false" required>
+      <label for="l-senha">Senha</label>
+      <input id="l-senha" type="password" autocomplete="current-password" required>
+      <div class="erro" id="l-erro"></div>
+      <div class="acoes">
+        <button type="button" class="link" id="b-ir-primeiro">Primeiro acesso</button>
+        <button type="submit" id="b-entrar">Entrar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PRIMEIRO ACESSO -->
+  <div class="view" id="v-primeiro" hidden>
+    <form class="auth" id="f-primeiro">
+      <h1>Primeiro acesso</h1>
+      <p class="sub" id="p-sub">Use o usuário e o código de ativação que você recebeu no privado.</p>
+      <div id="p-etapa1">
+        <label for="p-usuario">Usuário</label>
+        <input id="p-usuario" autocapitalize="off" spellcheck="false">
+        <label for="p-codigo">Código de ativação</label>
+        <input id="p-codigo" autocapitalize="characters" maxlength="6" spellcheck="false" autocomplete="off">
+      </div>
+      <div id="p-etapa2" hidden>
+        <label for="p-senha">Crie sua senha</label>
+        <input id="p-senha" type="password" autocomplete="new-password" placeholder="mínimo 8 caracteres, com letras e números">
+        <label for="p-senha2">Confirme a senha</label>
+        <input id="p-senha2" type="password" autocomplete="new-password">
+        <div id="p-pin" hidden>
+          <div class="info">Você é aprovador. Crie também um PIN pessoal de <b id="p-pin-n">6</b> números. Ele será pedido em toda aprovação e não pode ser compartilhado.</div>
+          <label for="p-pin1">PIN</label>
+          <input id="p-pin1" type="password" inputmode="numeric" autocomplete="off">
+          <label for="p-pin2">Confirme o PIN</label>
+          <input id="p-pin2" type="password" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+      <div class="erro" id="p-erro"></div>
+      <div class="acoes">
+        <button type="button" class="link" id="b-voltar-login">Voltar</button>
+        <button type="submit" id="b-primeiro">Continuar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- KANBAN -->
+  <div class="view" id="v-board" hidden>
+    <header>
+      <h1>Kanban de Desativação e Reativação</h1>
+      <span class="quem" id="h-quem"></span>
+      <button class="destaque" id="b-nova">+ Nova solicitação</button>
+      <button id="b-lote-inc" hidden>Inclusão em lote</button>
+      <button id="b-admin" hidden>Administração</button>
+      <button id="b-sair">Sair</button>
+    </header>
+    <div class="barra">
+      <input id="filtro" placeholder="Buscar por código do imóvel ou solicitante">
+      <select id="f-tipo" style="max-width:190px"><option value="">Todos os pedidos</option><option value="DESATIVAR">Só desativações</option><option value="REATIVAR">Só reativações</option></select>
+      <button class="sec" id="b-atualizar">Atualizar</button>
+      <button class="sec" id="b-sel-todos" hidden>Selecionar todos os solicitados</button>
+      <button class="ok" id="b-aprovar-sel" hidden disabled>Aprovar selecionados (0)</button>
+      <span id="atualizado" class="tag"></span>
+    </div>
+    <div class="faixa" id="faixa-aprovador" hidden></div>
+    <div id="board"></div>
+  </div>
+
+  <!-- ADMINISTRAÇÃO -->
+  <div class="view" id="v-admin" hidden>
+    <header>
+      <h1>Administração de usuários</h1>
+      <span class="quem" id="a-quem"></span>
+      <button class="destaque" id="b-novo-usuario">+ Novo usuário</button>
+      <button id="b-lote">Gerar códigos pendentes</button>
+      <button id="b-voltar-board">Voltar ao Kanban</button>
+    </header>
+    <div class="barra"><input id="a-filtro" placeholder="Buscar por nome ou usuário"></div>
+    <div class="admin">
+      <table>
+        <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Gerente</th><th>Situação</th><th>Imoview</th><th>Ações</th></tr></thead>
+        <tbody id="a-lista"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modais"></div>
+<div id="toast" hidden></div>
+
+<script>
+const S = { token: null, u: null, motivos: [], cards: [], urlExec: '', extMin: '1.0.0', extVersao: null,
+            filtro: '', usuarios: [], aprovando: null, timerAprov: null,
+            sel: new Set(), solicitantes: null };
+const $ = s => document.querySelector(s);
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const COLS = [['SOLICITADO', 'Solicitado'], ['APROVADO', 'Em execução'], ['EXECUTADO', 'Executado'],
+              ['RECUSADO', 'Recusado'], ['ERRO', 'Erro – precisa atualização']];
+
+/* ---------- utilidades ---------- */
+function guardar(t) { try { t ? sessionStorage.setItem('kd_token', t) : sessionStorage.removeItem('kd_token'); } catch (e) {} }
+function lerToken() { try { return sessionStorage.getItem('kd_token'); } catch (e) { return null; } }
+
+/* Endereço do Kanban (URL do app da Web, terminada em /exec).
+   Usado quando esta página está hospedada fora do Google. */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxdZpQQbdu7K6s3eRGhUJAS0bDGgf4mUWha1jcZl2bnfveiMnvJ2Ir0uE71RmIQdGOe/exec';
+const DENTRO_DO_GOOGLE = typeof google !== 'undefined' && google.script && google.script.run;
+
+function tratarErro(e) {
+  let m = String((e && e.message) || e).replace(/^Error:\s*/, '');
+  if (m.indexOf('SESSAO:') === 0) { m = m.slice(7).trim(); encerrarLocal(); $('#l-erro').textContent = m; }
+  return new Error(m);
+}
+
+function api(fn, ...args) {
+  if (DENTRO_DO_GOOGLE) {
+    return new Promise((ok, nok) => {
+      google.script.run.withSuccessHandler(ok).withFailureHandler(e => nok(tratarErro(e)))[fn](...args);
+    });
+  }
+  // fora do Google: chamada direta, SEM enviar contas Google (evita o erro de várias contas logadas)
+  return fetch(API_URL, {
+    method: 'POST', credentials: 'omit', redirect: 'follow', cache: 'no-store',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ ui: fn, args })
+  })
+    .catch(() => { throw new Error('Sem conexão com o Kanban. Confira a internet e tente de novo.'); })
+    .then(r => r.json().catch(() => { throw new Error('O Kanban respondeu de forma inesperada. Tente de novo.'); }))
+    .then(j => { if (!j.ok) throw tratarErro(j.erro); return j.dados; });
+}
+
+function ver(id) { document.querySelectorAll('.view').forEach(v => { v.hidden = (v.id !== id); }); }
+
+let toastT;
+function aviso(msg, tipo) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = tipo || ''; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 5000);
+}
+
+function modal(html, largo, travado) {
+  const f = document.createElement('div');
+  f.className = 'fundo';
+  f.innerHTML = '<div class="modal ' + (largo ? 'largo' : '') + '">' + html + '</div>';
+  $('#modais').appendChild(f);
+  f.addEventListener('click', e => { if (e.target === f && !travado) f.remove(); });
+  const fechar = f.querySelector('[data-a=fechar]');
+  if (fechar) fechar.addEventListener('click', () => f.remove());
+  return f;
+}
+
+function confirmar(msg) {
+  return new Promise(res => {
+    const f = modal('<h2>Confirmar</h2><p>' + esc(msg) + '</p><div class="acoes"><button class="sec" data-r="0">Cancelar</button><button data-r="1">Confirmar</button></div>', false, true);
+    f.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { f.remove(); res(b.dataset.r === '1'); }));
+  });
+}
+
+function rotuloPerfil(p) { return { CORRETOR: 'Corretor', GERENTE: 'Gerente de equipe', APROVADOR: 'Aprovador', ADMIN: 'Administrador' }[p] || p; }
+function rotuloStatus(s) { const c = COLS.find(x => x[0] === s); return c ? c[1] : s; }
+function versaoMenor(a, b) {
+  const x = String(a || '0').split('.').map(Number), y = String(b || '0').split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0);
+  return false;
+}
+function extDesatualizada() { return S.extVersao && versaoMenor(S.extVersao, S.extMin); }
+
+/* ---------- login ---------- */
+$('#f-login').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = $('#b-entrar');
+  $('#l-erro').textContent = ''; b.disabled = true; b.textContent = 'Entrando…';
+  try {
+    const r = await api('apiLogin', $('#l-usuario').value, $('#l-senha').value);
+    entrar(r.token, r.inicio);
+  } catch (err) { $('#l-erro').textContent = err.message; }
+  finally { b.disabled = false; b.textContent = 'Entrar'; $('#l-senha').value = ''; }
+});
+
+function entrar(token, inicio) {
+  S.token = token; guardar(token);
+  if (inicio) aplicarInicio(inicio); else carregar();
+}
+
+function encerrarLocal() {
+  S.token = null; S.u = null; S.sel.clear(); S.solicitantes = null; guardar(null);
+  $('#modais').innerHTML = '';
+  ver('v-login');
+}
+
+$('#b-sair').addEventListener('click', () => { api('apiSair', S.token).catch(() => {}); encerrarLocal(); });
+
+/* ---------- primeiro acesso ---------- */
+let P = { etapa: 1, precisaPin: false };
+$('#b-ir-primeiro').addEventListener('click', () => {
+  P = { etapa: 1, precisaPin: false };
+  $('#p-etapa1').hidden = false; $('#p-etapa2').hidden = true;
+  $('#p-erro').textContent = ''; $('#b-primeiro').textContent = 'Continuar';
+  $('#p-sub').textContent = 'Use o usuário e o código de ativação que você recebeu no privado.';
+  $('#p-usuario').value = $('#l-usuario').value;
+  ver('v-primeiro');
+});
+$('#b-voltar-login').addEventListener('click', () => ver('v-login'));
+
+$('#f-primeiro').addEventListener('submit', async e => {
+  e.preventDefault();
+  const b = $('#b-primeiro');
+  $('#p-erro').textContent = ''; b.disabled = true;
+  try {
+    if (P.etapa === 1) {
+      const r = await api('apiValidarAtivacao', $('#p-usuario').value, $('#p-codigo').value);
+      P = { etapa: 2, precisaPin: r.precisa_pin };
+      $('#p-sub').textContent = 'Olá, ' + r.nome + '! Agora crie sua senha.';
+      $('#p-etapa1').hidden = true; $('#p-etapa2').hidden = false;
+      $('#p-pin').hidden = !r.precisa_pin; $('#p-pin-n').textContent = r.pin_digitos;
+      b.textContent = 'Concluir';
+      $('#p-senha').focus();
+    } else {
+      const s = $('#p-senha').value;
+      if (s !== $('#p-senha2').value) throw new Error('As senhas não conferem.');
+      let pin = '';
+      if (P.precisaPin) {
+        pin = $('#p-pin1').value;
+        if (pin !== $('#p-pin2').value) throw new Error('Os PINs não conferem.');
+      }
+      const r = await api('apiPrimeiroAcesso', $('#p-usuario').value, $('#p-codigo').value, s, pin);
+      ['#p-senha', '#p-senha2', '#p-pin1', '#p-pin2', '#p-codigo'].forEach(i => { $(i).value = ''; });
+      aviso('Acesso criado! A partir de agora entre com usuário e senha.', 'ok');
+      entrar(r.token, r.inicio);
+    }
+  } catch (err) { $('#p-erro').textContent = err.message; }
+  finally { b.disabled = false; }
+});
+
+/* ---------- kanban ---------- */
+async function carregar() {
+  try {
+    aplicarInicio(await api('apiInicio', S.token));
+  } catch (err) {
+    ver('v-login');
+    $('#l-erro').textContent = err.message;
+  }
+}
+
+function aplicarInicio(r) {
+  S.u = r.usuario; S.motivos = r.motivos; S.cards = r.cards;
+  S.urlExec = r.url_exec; S.extMin = r.versao_extensao_minima;
+  montarBoard();
+  ver('v-board');
+  pingExt();
+}
+
+/* Aplica a lista de cards que o servidor já devolve junto com cada ação. */
+function aplicarCards(cards) {
+  if (!cards) { atualizar(); return; }
+  S.cards = cards; renderBoard(); carimbo();
+}
+
+function carimbo() {
+  $('#atualizado').textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function montarBoard() {
+  $('#h-quem').textContent = S.u.nome_curto + ' · ' + rotuloPerfil(S.u.perfil);
+  $('#b-admin').hidden = !S.u.admin;
+  $('#b-lote-inc').hidden = !S.u.pode_aprovar;
+  $('#b-sel-todos').hidden = !S.u.pode_aprovar;
+  $('#b-aprovar-sel').hidden = !S.u.pode_aprovar;
+  renderFaixa();
+  renderBoard();
+  carimbo();
+}
+
+async function atualizar() {
+  if (!S.token || !S.u) return;
+  try { S.cards = await api('apiCards', S.token); renderBoard(); carimbo(); }
+  catch (err) { aviso(err.message, 'erro'); }
+}
+
+function renderFaixa() {
+  const f = $('#faixa-aprovador');
+  if (!S.u || !S.u.pode_aprovar) { f.hidden = true; return; }
+  f.hidden = false;
+  let ext;
+  if (!S.extVersao) ext = '<span class="tag ruim">Extensão não detectada</span>';
+  else if (extDesatualizada()) ext = '<span class="tag ruim">Extensão desatualizada (v' + esc(S.extVersao) + ')</span>';
+  else ext = '<span class="tag ok">Extensão ativa v' + esc(S.extVersao) + '</span>';
+  let v;
+  if (S.u.vinculo_status === 'CONFIRMADO') v = '<span class="tag ok">Imoview vinculado: ' + esc(S.u.imoview_nome) + '</span>';
+  else if (S.u.vinculo_status === 'PENDENTE') v = '<span class="tag pend">Vínculo antigo pendente: clique em Vincular meu Imoview</span>';
+  else v = '<span class="tag ruim">Imoview não vinculado</span>';
+  const btn = S.extVersao ? '<button class="sec" id="b-vincular">' +
+    (S.u.vinculo_status === 'CONFIRMADO' ? 'Trocar Imoview vinculado' : 'Vincular meu Imoview') + '</button>' : '';
+  f.innerHTML = '<b>Aprovação:</b> ' + ext + ' ' + v + ' ' + btn;
+  const b = $('#b-vincular');
+  if (b) b.addEventListener('click', vincular);
+}
+
+function renderBoard() {
+  // mantém selecionados só os cards que ainda estão em Solicitado
+  const solicitados = new Set(S.cards.filter(c => c.status === 'SOLICITADO').map(c => c.id));
+  Array.from(S.sel).forEach(id => { if (!solicitados.has(id)) S.sel.delete(id); });
+  atualizarBotaoSel();
+  const f = S.filtro.trim().toLowerCase();
+  const ft = $('#f-tipo').value;
+  const filtra = c => (!ft || c.tipo === ft) && (!f || c.codigo.indexOf(f) >= 0 || String(c.incluido_por || '').toLowerCase().indexOf(f) >= 0);
+  $('#board').innerHTML = COLS.map(([st, tit]) => {
+    const cs = S.cards.filter(c => c.status === st && filtra(c));
+    return '<section class="col col-' + st + '"><h3>' + tit + '<span>' + cs.length + '</span></h3>' +
+      (cs.map(cardHtml).join('') || '<p class="vazio">Nenhum card</p>') + '</section>';
+  }).join('');
+}
+
+function cardHtml(c) {
+  const selecionavel = S.u && S.u.pode_aprovar && c.status === 'SOLICITADO';
+  const marcado = selecionavel && S.sel.has(c.id);
+  return '<article class="card' + (marcado ? ' marcado' : '') + '" data-id="' + esc(c.id) + '">' +
+    (selecionavel ? '<label class="sel" title="Selecionar para aprovação em lote"><input type="checkbox" data-sel="' + esc(c.id) + '"' + (marcado ? ' checked' : '') + '></label>' : '') +
+    '<div class="cod">Imóvel ' + esc(c.codigo) + etiquetaTipo(c.tipo) + '</div>' +
+    '<div class="mot">' + esc(c.motivo) + '</div>' +
+    '<div class="meta">' + esc(c.incluido_por) + ' · ' + esc(c.incluido_em) + '</div>' +
+    '<div class="cid">' + esc(c.id) + '</div></article>';
+}
+
+$('#board').addEventListener('click', e => {
+  if (e.target.closest('.sel')) return; // clique na caixinha não abre o card
+  const c = e.target.closest('.card');
+  if (c) abrirCard(c.dataset.id);
+});
+$('#board').addEventListener('change', e => {
+  const id = e.target.dataset && e.target.dataset.sel;
+  if (!id) return;
+  if (e.target.checked) S.sel.add(id); else S.sel.delete(id);
+  e.target.closest('.card').classList.toggle('marcado', e.target.checked);
+  atualizarBotaoSel();
+});
+
+function atualizarBotaoSel() {
+  const b = $('#b-aprovar-sel');
+  b.textContent = 'Aprovar selecionados (' + S.sel.size + ')';
+  b.disabled = S.sel.size === 0;
+  const total = S.cards.filter(c => c.status === 'SOLICITADO').length;
+  $('#b-sel-todos').textContent = (total && S.sel.size === total) ? 'Desmarcar todos' : 'Selecionar todos os solicitados';
+}
+
+$('#b-sel-todos').addEventListener('click', () => {
+  const ids = S.cards.filter(c => c.status === 'SOLICITADO').map(c => c.id);
+  if (ids.length && S.sel.size === ids.length) S.sel.clear();
+  else ids.slice(0, 50).forEach(id => S.sel.add(id));
+  if (ids.length > 50 && S.sel.size === 50) aviso('Selecionados os 50 primeiros (limite por lote).');
+  renderBoard();
+});
+
+$('#b-aprovar-sel').addEventListener('click', () => {
+  const lista = S.cards.filter(c => S.sel.has(c.id));
+  if (lista.length) aprovarLote(lista);
+});
+$('#filtro').addEventListener('input', e => { S.filtro = e.target.value; renderBoard(); });
+$('#b-atualizar').addEventListener('click', atualizar);
+$('#f-tipo').addEventListener('change', renderBoard);
+const ROT_TIPO = { DESATIVAR: 'Desativar', REATIVAR: 'Reativar' };
+const etiquetaTipo = t => '<span class="tipo ' + esc(t) + '">' + esc((ROT_TIPO[t] || t).toUpperCase()) + '</span>';
+const verbo = t => t === 'REATIVAR' ? 'reativar' : 'desativar';
+
+function abrirCard(id) {
+  const c = S.cards.find(x => x.id === id);
+  if (!c) return;
+  const L = [['Card', c.id], ['Pedido', ROT_TIPO[c.tipo] || c.tipo], ['Imóvel', c.codigo]]
+    .concat(c.tipo === 'REATIVAR' ? [] : [['Motivo', c.motivo]])
+    .concat([['Observação', c.observacao || '—'],
+             ['Status', rotuloStatus(c.status)], ['Solicitado por', c.incluido_por + ' em ' + c.incluido_em]]);
+  if (c.decidido_por) L.push([c.status === 'RECUSADO' ? 'Recusado por' : 'Aprovado por', c.decidido_por + ' em ' + c.decidido_em]);
+  if (c.motivo_recusa) L.push(['Motivo da recusa', c.motivo_recusa]);
+  if (c.imoview_usuario) L.push(['Usuário do Imoview', c.imoview_usuario]);
+  if (c.executado_em) L.push(['Executado em', c.executado_em]);
+  if (c.situacao_conferida) L.push(['Situação conferida', c.situacao_conferida]);
+  if (c.erro_em) L.push(['Erro em', c.erro_em + ' (passo: ' + c.erro_passo + ')']);
+  if (c.tentativas) L.push(['Tentativas', c.tentativas]);
+
+  let acoes = '';
+  if (S.u.pode_aprovar && c.status === 'SOLICITADO') acoes = '<button class="perigo" data-x="recusar">Recusar</button><button class="ok" data-x="aprovar">Aprovar e ' + verbo(c.tipo) + '</button>';
+  if (S.u.pode_aprovar && c.status === 'ERRO') acoes = '<button class="perigo" data-x="recusar">Recusar</button><button data-x="reabrir">Voltar para Solicitado</button>';
+
+  const f = modal('<h2>Imóvel ' + esc(c.codigo) + etiquetaTipo(c.tipo) + '</h2><dl class="det">' +
+    L.map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>').join('') + '</dl>' +
+    (c.status === 'ERRO' ? '<div class="alerta">' + esc(c.erro_mensagem) + '</div>' : '') +
+    '<div class="acoes"><button class="sec" data-a="fechar">Fechar</button>' + acoes + '</div>');
+  f.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => {
+    f.remove();
+    ({ recusar, aprovar, reabrir })[b.dataset.x](c);
+  }));
+}
+
+/* ---------- nova solicitação ---------- */
+$('#b-nova').addEventListener('click', () => {
+  const f = modal('<h2>Nova solicitação</h2><form id="f-nova">' +
+    '<div class="escolha-tipo"><label><input type="radio" name="tipo" value="DESATIVAR" checked> Desativar imóvel</label>' +
+    '<label><input type="radio" name="tipo" value="REATIVAR"> Reativar imóvel</label></div>' +
+    '<label>Código do imóvel no Imoview</label><input name="codigo" inputmode="numeric" autocomplete="off" required>' +
+    '<div id="n-motivo"><label>Motivo</label><select name="motivo_id"><option value="">Selecione…</option>' +
+    S.motivos.map(m => '<option value="' + m.id + '">' + esc(m.descricao) + '</option>').join('') + '</select></div>' +
+    '<label>Observação <span id="obs-req" style="color:var(--sub);font-weight:400">(opcional)</span></label>' +
+    '<textarea name="observacao" rows="3" maxlength="500"></textarea>' +
+    '<div class="erro" id="n-erro"></div>' +
+    '<div class="acoes"><button type="button" class="sec" data-a="fechar">Cancelar</button><button type="submit">Enviar solicitação</button></div></form>');
+  const fm = f.querySelector('form');
+  const tipoAtual = () => (fm.querySelector('[name=tipo]:checked') || {}).value || 'DESATIVAR';
+  fm.querySelectorAll('[name=tipo]').forEach(r => r.addEventListener('change', () => {
+    f.querySelector('#n-motivo').hidden = tipoAtual() === 'REATIVAR';
+    f.querySelector('#obs-req').textContent = '(opcional)';
+  }));
+  fm.elements.motivo_id.addEventListener('change', () => {
+    const m = S.motivos.find(x => String(x.id) === fm.elements.motivo_id.value);
+    f.querySelector('#obs-req').textContent = m && m.exige_observacao ? '(obrigatória)' : '(opcional)';
+  });
+  fm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const b = fm.querySelector('[type=submit]');
+    b.disabled = true; b.textContent = 'Enviando…'; f.querySelector('#n-erro').textContent = '';
+    try {
+      const r = await api('apiCriarCard', S.token, {
+        tipo: tipoAtual(), codigo: fm.elements.codigo.value,
+        motivo_id: tipoAtual() === 'REATIVAR' ? '' : fm.elements.motivo_id.value, observacao: fm.elements.observacao.value
+      });
+      f.remove();
+      aviso('Solicitação ' + r.id + ' enviada!', 'ok');
+      aplicarCards(r.cards);
+    } catch (err) { f.querySelector('#n-erro').textContent = err.message; b.disabled = false; b.textContent = 'Enviar solicitação'; }
+  });
+  fm.elements.codigo.focus();
+});
+
+/* ---------- recusar / reabrir ---------- */
+function recusar(c) {
+  const f = modal('<h2>Recusar imóvel ' + esc(c.codigo) + '</h2><label>Motivo da recusa</label>' +
+    '<textarea id="r-mot" rows="3" maxlength="300"></textarea><div class="erro" id="r-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="perigo" id="r-ok">Recusar</button></div>');
+  f.querySelector('#r-ok').addEventListener('click', async e => {
+    e.target.disabled = true;
+    try {
+      const r = await api('apiRecusar', S.token, c.id, f.querySelector('#r-mot').value);
+      f.remove(); aviso('Solicitação recusada.', 'ok'); aplicarCards(r.cards);
+    } catch (err) { f.querySelector('#r-erro').textContent = err.message; e.target.disabled = false; }
+  });
+}
+
+async function reabrir(c) {
+  const ok = await confirmar('Antes de voltar o imóvel ' + c.codigo + ' para Solicitado, confira no Imoview se ele NÃO foi desativado. Continuar?');
+  if (!ok) return;
+  try { const r = await api('apiReabrir', S.token, c.id); aviso('Card voltou para Solicitado.', 'ok'); aplicarCards(r.cards); }
+  catch (err) { aviso(err.message, 'erro'); }
+}
+
+/* ---------- aprovar (via extensão) ---------- */
+function paraExt(m) { window.postMessage(Object.assign({ fonte: 'kanban-desativacao' }, m), '*'); }
+function pingExt() { paraExt({ tipo: 'PING' }); }
+setInterval(() => { if (S.u && S.u.pode_aprovar && !S.extVersao) pingExt(); }, 3000);
+
+function aprovar(c) {
+  if (!S.extVersao) { aviso('Extensão da Invista não detectada neste navegador.', 'erro'); return; }
+  if (extDesatualizada()) { aviso('A extensão está desatualizada. Atualize antes de aprovar.', 'erro'); return; }
+  if (S.u.vinculo_status !== 'CONFIRMADO') { aviso('Seu Imoview ainda não está vinculado e confirmado.', 'erro'); return; }
+
+  const f = modal('<h2>Aprovar e ' + verbo(c.tipo) + '</h2><dl class="det">' +
+    '<dt>Imóvel</dt><dd>' + esc(c.codigo) + etiquetaTipo(c.tipo) + '</dd><dt>Motivo</dt><dd>' + esc(c.motivo) + '</dd>' +
+    '<dt>Solicitado por</dt><dd>' + esc(c.incluido_por) + '</dd></dl>' +
+    '<div class="info">Deixe o Imoview logado com o <b>seu</b> usuário neste navegador. A extensão vai abrir o imóvel e fazer a alteração.</div>' +
+    '<label>Seu PIN</label><input id="ap-pin" type="password" inputmode="numeric" autocomplete="off">' +
+    '<div class="erro" id="ap-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="ok" id="ap-ok">Confirmar</button></div>');
+  const pin = f.querySelector('#ap-pin');
+  pin.focus();
+  const ir = () => {
+    const v = pin.value; pin.value = '';
+    if (!v) { f.querySelector('#ap-erro').textContent = 'Digite seu PIN.'; return; }
+    f.remove();
+    S.aprovando = c.id;
+    const p = modal('<h2>Executando no Imoview</h2><p><span class="spin"></span><span id="x-passo">Conferindo usuário e PIN…</span></p>' +
+      '<p style="color:var(--sub)">Não feche esta aba nem a aba do Imoview.</p>', false, true);
+    p.id = 'm-exec';
+    paraExt({ tipo: 'APROVAR', token: S.token, card_id: c.id, codigo: c.codigo, pin: v, url_exec: S.urlExec });
+    clearTimeout(S.timerAprov);
+    S.timerAprov = setTimeout(() => finalizarAprov({
+      card_id: c.id, sucesso: false,
+      mensagem: 'A extensão não respondeu. Confira o card e o imóvel no Imoview antes de tentar de novo.'
+    }), 180000);
+  };
+  f.querySelector('#ap-ok').addEventListener('click', ir);
+  pin.addEventListener('keydown', e => { if (e.key === 'Enter') ir(); });
+}
+
+function finalizarAprov(r) {
+  clearTimeout(S.timerAprov);
+  S.aprovando = null;
+  const m = document.getElementById('m-exec');
+  if (m) m.remove();
+  const padrao = r.sucesso ? 'O imóvel foi alterado no Imoview e o card foi para Executado.' : 'Nenhuma alteração foi feita.';
+  modal('<h2>' + (r.sucesso ? 'Concluído no Imoview' : 'Não concluído') + '</h2>' +
+    '<div class="' + (r.sucesso ? 'info' : 'alerta') + '">' + esc(r.mensagem || padrao) + '</div>' +
+    '<div class="acoes"><button data-a="fechar">OK</button></div>');
+  atualizar();
+}
+
+function prontoParaExecutar() {
+  if (!S.extVersao) { aviso('Extensão da Invista não detectada neste navegador.', 'erro'); return false; }
+  if (extDesatualizada()) { aviso('A extensão está desatualizada. Atualize antes de aprovar.', 'erro'); return false; }
+  if (S.u.vinculo_status !== 'CONFIRMADO') { aviso('Seu Imoview ainda não está vinculado e confirmado.', 'erro'); return false; }
+  return true;
+}
+
+function aprovarLote(lista) {
+  if (!prontoParaExecutar()) return;
+  const f = modal('<h2>Aprovar ' + lista.length + ' imóve' + (lista.length > 1 ? 'is' : 'l') + '</h2>' +
+    '<div class="lista-curta">' + lista.map(c => '<div><b>' + esc(c.codigo) + '</b>' + etiquetaTipo(c.tipo) + ' — ' + esc(c.motivo) + '</div>').join('') + '</div>' +
+    '<div class="info">Deixe o Imoview logado com o <b>seu</b> usuário neste navegador. A extensão vai alterar um imóvel por vez, cada um conforme o seu pedido. ' +
+    'Tempo estimado: até ' + Math.max(1, Math.ceil(lista.length * 0.5)) + ' min.</div>' +
+    '<label>Seu PIN</label><input id="al-pin" type="password" inputmode="numeric" autocomplete="off">' +
+    '<div class="erro" id="al-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="ok" id="al-ok">Confirmar</button></div>');
+  const pin = f.querySelector('#al-pin');
+  pin.focus();
+  const ir = () => {
+    const v = pin.value; pin.value = '';
+    if (!v) { f.querySelector('#al-erro').textContent = 'Digite seu PIN.'; return; }
+    f.remove();
+    S.aprovando = 'LOTE';
+    const p = modal('<h2>Executando no Imoview</h2><p><span class="spin"></span><span id="x-passo">Conferindo usuário e PIN…</span></p>' +
+      '<p style="color:var(--sub)">Não feche esta aba nem a aba do Imoview até terminar.</p>', false, true);
+    p.id = 'm-exec';
+    paraExt({ tipo: 'APROVAR_LOTE', token: S.token, card_ids: lista.map(c => c.id), pin: v, url_exec: S.urlExec });
+    clearTimeout(S.timerAprov);
+    S.timerAprov = setTimeout(() => finalizarLote({
+      sucessos: [], erros: [{ codigo: '—', mensagem: 'A extensão parou de responder. Confira os cards e os imóveis no Imoview antes de tentar de novo.' }]
+    }), 120000 + lista.length * 60000);
+  };
+  f.querySelector('#al-ok').addEventListener('click', ir);
+  pin.addEventListener('keydown', e => { if (e.key === 'Enter') ir(); });
+}
+
+function finalizarLote(r) {
+  clearTimeout(S.timerAprov);
+  S.aprovando = null;
+  S.sel.clear();
+  const m = document.getElementById('m-exec');
+  if (m) m.remove();
+  const ok = r.sucessos || [];
+  const erros = r.erros || [];
+  modal('<h2>Resultado da execução em lote</h2>' +
+    (r.mensagem ? '<div class="alerta">' + esc(r.mensagem) + '</div>' : '') +
+    '<div class="info"><b>' + ok.length + '</b> concluído(s) no Imoview' + (ok.length ? ': ' + ok.map(esc).join(', ') : '') + '</div>' +
+    (erros.length ? '<div class="alerta"><b>' + erros.length + '</b> não concluído(s):' +
+      '<div class="lista-curta" style="background:transparent;padding:4px 0">' +
+      erros.map(x => '<div><b>' + esc(x.codigo) + '</b> — ' + esc(x.mensagem) + '</div>').join('') + '</div></div>' : '') +
+    '<div class="acoes"><button data-a="fechar">OK</button></div>', true);
+  atualizar();
+}
+
+/* ---------- inclusão em lote ---------- */
+$('#b-lote-inc').addEventListener('click', async () => {
+  try { if (!S.solicitantes) S.solicitantes = await api('apiSolicitantes', S.token); }
+  catch (err) { aviso(err.message, 'erro'); return; }
+  inclusaoLoteEtapa1();
+});
+
+function opcoesMotivo(sel) {
+  return '<option value="">Selecione…</option>' + S.motivos.map(m =>
+    '<option value="' + m.id + '"' + (String(sel) === String(m.id) ? ' selected' : '') + '>' + esc(m.descricao) + '</option>').join('');
+}
+function opcoesSolicitante(sel) {
+  return '<option value="">(não informado)</option>' + S.solicitantes.map(s =>
+    '<option value="' + esc(s.usuario) + '"' + (sel === s.usuario ? ' selected' : '') + '>' + esc(s.nome_curto) + '</option>').join('');
+}
+
+/* Normaliza texto para comparar motivos: minúsculo, sem acento, só letras e números. */
+function normTxt(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/* Descobre o motivo a partir do texto da linha (número do Imoview ou nome, mesmo abreviado).
+   Se houver empate ou nada parecido, devolve '' e a Rayssa escolhe na tabela. */
+function acharMotivo(txt) {
+  const t = normTxt(txt);
+  if (!t) return '';
+  if (/^\d+$/.test(t)) { const m = S.motivos.find(x => String(x.id) === t); return m ? String(m.id) : ''; }
+  const exato = S.motivos.find(x => normTxt(x.descricao) === t);
+  if (exato) return String(exato.id);
+  const palavras = t.split(' ').filter(w => w.length >= 3 && ['com', 'pela', 'pelo', 'dos', 'das'].indexOf(w) < 0);
+  let melhor = null, nota = 0, empate = false;
+  S.motivos.forEach(m => {
+    const desc = normTxt(m.descricao).split(' ');
+    const n = palavras.filter(p => desc.some(d => d.indexOf(p) === 0 || p.indexOf(d) === 0 && d.length >= 4)).length;
+    if (n > nota) { melhor = m; nota = n; empate = false; } else if (n === nota && n > 0) empate = true;
+  });
+  return (melhor && !empate) ? String(melhor.id) : '';
+}
+
+/* Cada linha: "código - motivo" na desativação, ou "código - observação" na reativação. */
+function lerLinhasLote(texto, padrao, tipo) {
+  const itens = [];
+  const vistos = {};
+  String(texto || '').split(/\r?\n/).forEach(linha => {
+    const m = linha.match(/^\s*(\d{1,10})\s*[-–—;:,|\t ]*\s*(.*)$/);
+    if (!m || vistos[m[1]]) return;
+    vistos[m[1]] = true;
+    const resto = m[2].trim();
+    if (tipo === 'REATIVAR') {
+      itens.push({ tipo, codigo: m[1], motivo_id: '', motivo_digitado: '', solicitante: padrao.solicitante,
+        observacao: resto || padrao.observacao });
+      return;
+    }
+    const motivo = resto ? acharMotivo(resto) : padrao.motivo_id;
+    itens.push({
+      tipo: 'DESATIVAR',
+      codigo: m[1],
+      motivo_id: motivo,
+      motivo_digitado: resto,
+      solicitante: padrao.solicitante,
+      observacao: padrao.observacao
+    });
+  });
+  return itens;
+}
+
+function inclusaoLoteEtapa1() {
+  const exemplo = '43946 - Locado pela Invista&#10;43950 - Desistiu de alugar&#10;44012 - Fora de preço&#10;44100 - 15';
+  const exemploReat = '41221&#10;45584 - proprietário pediu para voltar a anunciar';
+  const f = modal('<h2>Inclusão em lote</h2>' +
+    '<div class="escolha-tipo"><label><input type="radio" name="li-tipo" value="DESATIVAR" checked> Desativar imóveis</label>' +
+    '<label><input type="radio" name="li-tipo" value="REATIVAR"> Reativar imóveis</label></div>' +
+    '<p style="color:var(--sub);margin:0" id="li-ajuda"></p>' +
+    '<label id="li-rotulo"></label><textarea id="li-codigos" rows="8"></textarea>' +
+    '<div id="li-motivo-box"><label>Motivo para linhas sem motivo <span style="color:var(--sub);font-weight:400">(opcional)</span></label><select id="li-motivo">' + opcoesMotivo('') + '</select></div>' +
+    '<label>Solicitante padrão (corretor que pediu) <span style="color:var(--sub);font-weight:400">(opcional)</span></label><select id="li-solic">' + opcoesSolicitante('') + '</select>' +
+    '<label>Observação padrão <span style="color:var(--sub);font-weight:400">(opcional)</span></label><input id="li-obs" maxlength="300">' +
+    '<div class="erro" id="li-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button id="li-montar">Conferir lista</button></div>', true);
+  const tipoLote = () => (f.querySelector('[name=li-tipo]:checked') || {}).value || 'DESATIVAR';
+  const ajustar = () => {
+    const reat = tipoLote() === 'REATIVAR';
+    f.querySelector('#li-ajuda').innerHTML = reat
+      ? 'Cole <b>um imóvel por linha</b>. Depois do código você pode escrever uma observação (opcional). Os imóveis voltam para <b>Vago/Disponível</b>.'
+      : 'Cole <b>um imóvel por linha</b>, no formato <b>código - motivo</b>. O motivo pode ser o nome (mesmo abreviado, ex.: "locado invista") ou o número do motivo no Imoview. Na próxima tela você confere e corrige cada linha.';
+    f.querySelector('#li-rotulo').textContent = reat ? 'Imóveis a reativar' : 'Imóveis e motivos';
+    f.querySelector('#li-codigos').placeholder = (reat ? exemploReat : exemplo).replace(/&#10;/g, '\n');
+    f.querySelector('#li-motivo-box').hidden = reat;
+  };
+  f.querySelectorAll('[name=li-tipo]').forEach(r => r.addEventListener('change', ajustar));
+  ajustar();
+  f.querySelector('#li-codigos').focus();
+  f.querySelector('#li-montar').addEventListener('click', () => {
+    const padrao = { motivo_id: f.querySelector('#li-motivo').value, solicitante: f.querySelector('#li-solic').value, observacao: f.querySelector('#li-obs').value };
+    const itens = lerLinhasLote(f.querySelector('#li-codigos').value, padrao, tipoLote());
+    if (!itens.length) { f.querySelector('#li-erro').textContent = 'Cole pelo menos uma linha começando pelo código do imóvel.'; return; }
+    if (itens.length > 50) { f.querySelector('#li-erro').textContent = 'Máximo de 50 imóveis por vez (você colou ' + itens.length + ').'; return; }
+    f.remove();
+    inclusaoLoteEtapa2(itens);
+  });
+}
+
+function inclusaoLoteEtapa2(itens) {
+  const reat = itens[0] && itens[0].tipo === 'REATIVAR';
+  const linha = it =>
+    '<tr><td><input type="hidden" data-c="tipo" value="' + esc(it.tipo) + '"><input data-c="codigo" value="' + esc(it.codigo) + '" inputmode="numeric" style="width:90px"></td>' +
+    (reat ? '<td><input type="hidden" data-c="motivo_id" value="">' + etiquetaTipo('REATIVAR') + '</td>' :
+    '<td><select data-c="motivo_id"' + (it.motivo_id ? '' : ' style="border-color:var(--vermelho)"') + '>' + opcoesMotivo(it.motivo_id) + '</select>' +
+      (!it.motivo_id && it.motivo_digitado ? '<div style="font-size:11px;color:var(--vermelho)">Não reconheci "' + esc(it.motivo_digitado) + '". Escolha o motivo.</div>' : '') +
+    '</td>') +
+    '<td><select data-c="solicitante">' + opcoesSolicitante(it.solicitante) + '</select></td>' +
+    '<td><input data-c="observacao" value="' + esc(it.observacao) + '" maxlength="300"></td>' +
+    '<td><button class="sec" data-rm title="Remover">✕</button></td></tr>';
+  const f = modal('<h2>Conferir antes de incluir ' + etiquetaTipo(reat ? 'REATIVAR' : 'DESATIVAR') + '</h2>' +
+    '<div class="admin" style="padding:0;overflow-x:auto"><table class="lote-tab"><thead><tr><th>Código</th><th>' + (reat ? 'Pedido' : 'Motivo') + '</th><th>Solicitante</th><th>Observação</th><th></th></tr></thead>' +
+    '<tbody>' + itens.map(linha).join('') + '</tbody></table></div>' +
+    '<div class="erro" id="l2-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button id="l2-ok"></button></div>', true, true);
+  const corpo = f.querySelector('tbody');
+  const botao = f.querySelector('#l2-ok');
+  const contar = () => { botao.textContent = 'Incluir ' + corpo.children.length + ' solicitação(ões)'; botao.disabled = !corpo.children.length; };
+  contar();
+  corpo.addEventListener('click', e => { if (e.target.hasAttribute('data-rm')) { e.target.closest('tr').remove(); contar(); } });
+  botao.addEventListener('click', async () => {
+    const lista = Array.from(corpo.children).map(tr => {
+      const o = {};
+      tr.querySelectorAll('[data-c]').forEach(el => { o[el.dataset.c] = el.value; });
+      return o;
+    });
+    const semMotivo = lista.filter(x => x.tipo !== 'REATIVAR' && !x.motivo_id).map(x => x.codigo);
+    if (semMotivo.length) { f.querySelector('#l2-erro').textContent = 'Escolha o motivo de: ' + semMotivo.join(', '); return; }
+    botao.disabled = true; botao.textContent = 'Incluindo…';
+    try {
+      const r = await api('apiCriarCardsLote', S.token, lista);
+      f.remove();
+      modal('<h2>Inclusão concluída</h2>' +
+        '<div class="info"><b>' + r.criados.length + '</b> solicitação(ões) criada(s)' +
+        (r.criados.length ? ': ' + r.criados.map(x => esc(x.codigo)).join(', ') : '') + '</div>' +
+        (r.ignorados.length ? '<div class="alerta"><b>' + r.ignorados.length + '</b> ignorada(s):' +
+          r.ignorados.map(x => '<div><b>' + esc(x.codigo) + '</b> — ' + esc(x.motivo) + '</div>').join('') + '</div>' : '') +
+        '<div class="acoes"><button data-a="fechar">OK</button></div>');
+      aplicarCards(r.cards);
+    } catch (err) { f.querySelector('#l2-erro').textContent = err.message; contar(); }
+  });
+}
+
+function vincular() {
+  const f = modal('<h2>Vincular meu Imoview</h2>' +
+    '<div class="info">Deixe o Imoview aberto e logado com o <b>seu</b> usuário neste navegador. ' +
+    'A extensão vai ler qual usuário está logado e vincular ao seu acesso do Kanban.</div>' +
+    '<label>Seu PIN</label><input id="vi-pin" type="password" inputmode="numeric" autocomplete="off">' +
+    '<div class="erro" id="vi-erro"></div>' +
+    '<div class="acoes"><button class="sec" data-a="fechar">Cancelar</button><button class="ok" id="vi-ok">Vincular</button></div>');
+  const pin = f.querySelector('#vi-pin');
+  pin.focus();
+  const ir = () => {
+    const v = pin.value; pin.value = '';
+    if (!v) { f.querySelector('#vi-erro').textContent = 'Digite seu PIN.'; return; }
+    f.remove();
+    paraExt({ tipo: 'VINCULAR', token: S.token, url_exec: S.urlExec, pin: v });
+    aviso('Lendo seu usuário no Imoview…');
+  };
+  f.querySelector('#vi-ok').addEventListener('click', ir);
+  pin.addEventListener('keydown', e => { if (e.key === 'Enter') ir(); });
+}
+
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (!d || d.fonte !== 'ext-desativacao') return;
+  if (d.tipo === 'PRONTA') {
+    const mudou = S.extVersao !== d.versao;
+    S.extVersao = d.versao;
+    if (S.u && mudou) renderFaixa();
+  } else if (d.tipo === 'PROGRESSO') {
+    const p = document.getElementById('x-passo');
+    if (p) p.textContent = d.texto;
+  } else if (d.tipo === 'RESULTADO') {
+    if (S.aprovando && d.card_id === S.aprovando) finalizarAprov(d);
+  } else if (d.tipo === 'RESULTADO_LOTE') {
+    if (S.aprovando === 'LOTE') finalizarLote(d);
+  } else if (d.tipo === 'VINCULO') {
+    aviso(d.mensagem, d.ok ? 'ok' : 'erro');
+    if (d.ok) carregar();
+  }
+});
+
+/* ---------- administração ---------- */
+$('#b-admin').addEventListener('click', async () => {
+  ver('v-admin');
+  $('#a-quem').textContent = S.u.nome_curto;
+  await carregarUsuarios();
+});
+$('#b-voltar-board').addEventListener('click', () => { ver('v-board'); atualizar(); });
+$('#a-filtro').addEventListener('input', renderUsuarios);
+$('#b-novo-usuario').addEventListener('click', () => formUsuario(null));
+
+async function carregarUsuarios() {
+  try { S.usuarios = await api('apiAdminUsuarios', S.token); renderUsuarios(); }
+  catch (err) { aviso(err.message, 'erro'); }
+}
+
+function situacao(u) {
+  if (u.ativo !== 'SIM') return '<span class="tag">Desativado</span>';
+  let s = u.ativado ? '<span class="tag ok">Ativo</span>'
+    : (u.codigo_ate ? '<span class="tag pend">Código válido até ' + esc(u.codigo_ate) + '</span>' : '<span class="tag ruim">Sem acesso</span>');
+  if (u.bloqueado) s += ' <span class="tag ruim">Bloqueado</span>';
+  return s;
+}
+
+function renderUsuarios() {
+  const f = $('#a-filtro').value.toLowerCase().trim();
+  const nomes = {};
+  S.usuarios.forEach(u => { nomes[u.usuario] = u.nome_curto || u.nome; });
+  $('#a-lista').innerHTML = S.usuarios
+    .filter(u => !f || (u.nome + ' ' + u.usuario).toLowerCase().indexOf(f) >= 0)
+    .map(u => {
+      const aprovador = u.perfil === 'APROVADOR' || u.perfil === 'ADMIN';
+      let im = '—';
+      if (aprovador) {
+        if (u.vinculo_status === 'CONFIRMADO') im = '<span class="tag ok">' + esc(u.imoview_nome) + '</span>';
+        else if (u.vinculo_status === 'PENDENTE') im = '<span class="tag pend">' + esc(u.imoview_nome) + ' (id ' + esc(u.imoview_id) + ')</span>';
+        else im = '<span class="tag ruim">Não vinculado</span>';
+      }
+      let ac = '<button class="sec" data-a="editar">Editar</button><button class="sec" data-a="codigo">Gerar código</button>';
+      if (u.vinculo_status === 'PENDENTE') ac += '<button class="ok" data-a="vconf">Confirmar vínculo</button><button class="perigo" data-a="vrej">Rejeitar vínculo</button>';
+      if (u.vinculo_status === 'CONFIRMADO') ac += '<button class="perigo" data-a="vrej">Remover vínculo</button>';
+      if (u.bloqueado) ac += '<button class="sec" data-a="desbloq">Desbloquear</button>';
+      ac += '<button class="sec" data-a="sessoes">Encerrar sessões</button>';
+      return '<tr data-u="' + esc(u.usuario) + '"><td>' + esc(u.nome) + '</td><td>' + esc(u.usuario) + '</td><td>' +
+        esc(rotuloPerfil(u.perfil)) + '</td><td>' + esc(nomes[u.gerente_usuario] || '—') + '</td><td>' + situacao(u) +
+        '</td><td>' + im + '</td><td class="acoes-l">' + ac + '</td></tr>';
+    }).join('');
+}
+
+$('#a-lista').addEventListener('click', async e => {
+  const a = e.target.dataset && e.target.dataset.a;
+  if (!a) return;
+  const usuario = e.target.closest('tr').dataset.u;
+  const u = S.usuarios.find(x => x.usuario === usuario);
+  try {
+    if (a === 'editar') { formUsuario(u); return; }
+    if (a === 'codigo') {
+      if (u.ativado && !(await confirmar('Gerar um novo código para ' + u.nome + '? A senha' +
+          (u.perfil === 'APROVADOR' || u.perfil === 'ADMIN' ? ' e o PIN atuais deixam' : ' atual deixa') +
+          ' de valer e a pessoa terá que fazer o primeiro acesso de novo.'))) return;
+      const r = await api('apiAdminGerarCodigo', S.token, usuario);
+      S.usuarios = r.usuarios; renderUsuarios();
+      mostrarCodigos([r]);
+      return;
+    }
+    if (a === 'vconf') {
+      if (!(await confirmar('Confirmar que ' + u.nome + ' é o usuário "' + u.imoview_nome + '" (id ' + u.imoview_id + ') no Imoview?'))) return;
+      S.usuarios = await api('apiAdminVinculo', S.token, usuario, true); aviso('Vínculo confirmado.', 'ok');
+    }
+    if (a === 'vrej') {
+      if (!(await confirmar('Remover o vínculo do Imoview de ' + u.nome + '? A pessoa só volta a aprovar depois de vincular de novo (com o PIN dela).'))) return;
+      S.usuarios = await api('apiAdminVinculo', S.token, usuario, false); aviso('Vínculo removido.', 'ok');
+    }
+    if (a === 'desbloq') { S.usuarios = await api('apiAdminDesbloquear', S.token, usuario); aviso('Usuário desbloqueado.', 'ok'); }
+    if (a === 'sessoes') { S.usuarios = await api('apiAdminEncerrarSessoes', S.token, usuario); aviso('Sessões encerradas.', 'ok'); }
+    renderUsuarios();
+  } catch (err) { aviso(err.message, 'erro'); }
+});
+
+$('#b-lote').addEventListener('click', async () => {
+  const ok = await confirmar('Gerar códigos para todos os usuários ativos que ainda não fizeram o primeiro acesso? Códigos gerados antes para essas pessoas deixam de valer.');
+  if (!ok) return;
+  try { const r = await api('apiAdminGerarCodigosPendentes', S.token); S.usuarios = r.usuarios; renderUsuarios(); mostrarCodigos(r.codigos); }
+  catch (err) { aviso(err.message, 'erro'); }
+});
+
+function msgAcesso(r) {
+  return 'Olá, ' + r.nome_curto + '! Seu acesso ao Kanban de Desativação da Invista:\n\n' +
+    'Link: ' + S.urlExec + '\n' +
+    'Usuário: ' + r.usuario + '\n' +
+    'Código de ativação: ' + r.codigo + ' (válido até ' + r.expira + ')\n\n' +
+    'Abra o link, clique em "Primeiro acesso", digite o usuário e o código e crie sua senha. Não compartilhe este código.';
+}
+
+function mostrarCodigos(lista) {
+  if (!lista.length) { aviso('Nenhum usuário pendente de ativação.'); return; }
+  const texto = lista.map(msgAcesso).join('\n\n--------------------\n\n');
+  const f = modal('<h2>Códigos de ativação (' + lista.length + ')</h2>' +
+    '<div class="info">Os códigos só aparecem agora. Envie cada mensagem no privado da pessoa.</div>' +
+    '<textarea rows="14" readonly style="margin-top:10px">' + esc(texto) + '</textarea>' +
+    '<div class="acoes"><button class="sec" id="c-copiar">Copiar tudo</button><button data-a="fechar">Fechar</button></div>', true, true);
+  const ta = f.querySelector('textarea');
+  f.querySelector('#c-copiar').addEventListener('click', () => {
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); aviso('Copiado!', 'ok'); }
+    catch (e) { aviso('Selecione o texto e copie com Ctrl+C.'); }
+  });
+}
+
+function formUsuario(u) {
+  const novo = !u;
+  u = u || { perfil: 'CORRETOR', ativo: 'SIM' };
+  const gerentes = S.usuarios.filter(x => x.perfil === 'GERENTE');
+  const f = modal('<h2>' + (novo ? 'Novo usuário' : 'Editar ' + esc(u.nome)) + '</h2><form>' +
+    '<label>Nome completo</label><input name="nome" value="' + esc(u.nome || '') + '" required>' +
+    '<label>Como é chamado(a)</label><input name="nome_curto" value="' + esc(u.nome_curto || '') + '">' +
+    '<label>Usuário (nome.sobrenome, sem acentos)</label><input name="usuario" value="' + esc(u.usuario || '') + '" ' + (novo ? '' : 'readonly') + ' autocapitalize="off" spellcheck="false">' +
+    '<label>Perfil</label><select name="perfil">' + ['CORRETOR', 'GERENTE', 'APROVADOR', 'ADMIN'].map(p =>
+      '<option value="' + p + '"' + (u.perfil === p ? ' selected' : '') + '>' + rotuloPerfil(p) + '</option>').join('') + '</select>' +
+    '<div id="g-box"><label>Gerente da equipe</label><select name="gerente_usuario"><option value="">Sem equipe</option>' +
+      gerentes.map(g => '<option value="' + esc(g.usuario) + '"' + (u.gerente_usuario === g.usuario ? ' selected' : '') + '>' + esc(g.nome) + '</option>').join('') +
+    '</select></div>' +
+    '<label>Ativo</label><select name="ativo"><option value="SIM"' + (u.ativo === 'SIM' ? ' selected' : '') + '>Sim</option>' +
+      '<option value="NAO"' + (u.ativo === 'NAO' ? ' selected' : '') + '>Não (bloqueia o acesso)</option></select>' +
+    '<div class="info" id="pin-aviso" hidden>Depois de salvar, gere um novo código de ativação para a pessoa criar o PIN de aprovador.</div>' +
+    '<div class="erro"></div>' +
+    '<div class="acoes"><button type="button" class="sec" data-a="fechar">Cancelar</button><button type="submit">Salvar</button></div></form>');
+  const fm = f.querySelector('form');
+  const el = fm.elements;
+  const aprova = p => p === 'APROVADOR' || p === 'ADMIN';
+  const atualizarCampos = () => {
+    f.querySelector('#g-box').hidden = el.perfil.value !== 'CORRETOR';
+    f.querySelector('#pin-aviso').hidden = novo || aprova(u.perfil) || !aprova(el.perfil.value);
+  };
+  el.perfil.addEventListener('change', atualizarCampos);
+  atualizarCampos();
+  fm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const b = fm.querySelector('[type=submit]');
+    b.disabled = true; b.textContent = 'Salvando…';
+    try {
+      S.usuarios = await api('apiAdminSalvarUsuario', S.token, {
+        usuario: el.usuario.value, nome: el.nome.value, nome_curto: el.nome_curto.value,
+        perfil: el.perfil.value, gerente_usuario: el.gerente_usuario.value, ativo: el.ativo.value
+      }, novo);
+      f.remove(); aviso('Usuário salvo.', 'ok'); renderUsuarios();
+    } catch (err) { fm.querySelector('.erro').textContent = err.message; b.disabled = false; b.textContent = 'Salvar'; }
+  });
+}
+
+/* ---------- inicialização ---------- */
+setInterval(() => {
+  if (S.u && document.visibilityState === 'visible' && !$('#modais').children.length && !$('#v-board').hidden) atualizar();
+}, 30000);
+
+(function iniciar() {
+  const t = lerToken();
+  if (t) { S.token = t; carregar(); } else ver('v-login');
+})();
+</script>
+</body>
+</html>
